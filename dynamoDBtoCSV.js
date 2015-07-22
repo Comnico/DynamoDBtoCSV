@@ -55,7 +55,7 @@ function arrayToCSV(array_input) {
     // 全ての改行コードを空文字へ変換
     array_input[i] = array_input[i].replace(/\r?\n/g, "");
     // 文字列内のダブルクォーテーションをエスケープ
-    string_output += ('\'' + array_input[i].replace('"', '\"'));
+    string_output += ('"' + array_input[i].replace(/\"/g, '\\"') + '"')
     // タブで区切る
     if (i != array_input.length - 1) string_output += "\t"
   };
