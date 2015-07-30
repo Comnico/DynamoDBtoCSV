@@ -4,24 +4,23 @@ AWS.config.loadFromPath('./config.json');
 var dynamoDB = new AWS.DynamoDB();
 var headers = [];
 
-program.version('0.0.1').option('-t, --table [tablename]', 'Add the table you want to output to csv').option("-d, --describe").parse(process.argv);
+program.version('0.0.1').option('-t, --table [tablename]', 'Add the table you want to output to csv').option('-d, --describe').parse(process.argv);
 
 if (!program.table) {
-  console.log("You must specify a table");
+  console.log('You must specify a table');
   program.outputHelp();
   process.exit(1);
 }
 
 var query = {
-  "TableName": program.table,
-  "Limit": 1000,
+  TableName: program.table,
+  Limit: 1000
 };
-
 
 var describeTable = function(query) {
 
   dynamoDB.describeTable({
-    "TableName": program.table
+    TableName: program.table
   }, function(err, data) {
 
     if (!err) {
@@ -30,36 +29,33 @@ var describeTable = function(query) {
 
     } else console.dir(err);
   });
-}
-
+};
 
 var scanDynamoDB = function(query) {
 
   dynamoDB.scan(query, function(err, data) {
 
     if (!err) {
+      printout(data.Items); // Print out the subset of results.
 
-      printout(data.Items) // Print out the subset of results.
       if (data.LastEvaluatedKey) { // Result is incomplete; there is more to come.
         query.ExclusiveStartKey = data.LastEvaluatedKey;
         scanDynamoDB(query);
-      };
+      }
     } else console.dir(err);
 
   });
 };
 
-function arrayToCSV(array_input) {
-  var string_output = "";
-  for (var i = 0; i < array_input.length; i++) {
-    // 全ての改行コードを空文字へ変換
-    array_input[i] = array_input[i].replace(/\r?\n/g, "");
+function arrayToCSV(arrayInput) {
+  var stringOutPut = '';
+  for (var i = 0; i < arrayInput.length; i++) {
     // 文字列内のダブルクォーテーションをエスケープ
-    string_output += ('"' + array_input[i].replace(/\"/g, '\\"') + '"')
-    // タブで区切る
-    if (i != array_input.length - 1) string_output += "\t"
-  };
-  return string_output;
+    stringOutPut += ('"' + arrayInput[i].replace(/\"/g, '\\"') + '"');
+    if (i != arrayInput.length - 1) stringOutPut += "\t";
+  }
+
+  return stringOutPut;
 }
 
 function printout(items) {
@@ -68,25 +64,33 @@ function printout(items) {
   var header;
   var value;
 
-  if (headers.length == 0) {
+  if (headers.length === 0) {
     if (items.length > 0) {
       for (var i = 0; i < items.length; i++) {
         for (var key in items[i]) {
-          headersMap[key] = true;
+          if (key === 'new_memo') {
+            // new_memoは移行しないのでスキップ
+            continue;
+          } else {
+            headersMap[key] = true;
+          }
         }
       }
     }
-    for (var key in headersMap) {
-      headers.push(key);
+
+    for (var headerKey in headersMap) {
+      headers.push(headerKey);
     }
-    console.log(arrayToCSV(headers))
+
+    console.log(arrayToCSV(headers));
   }
 
-  for (index in items) {
+  for (var index in items) {
     values = [];
-    for (i = 0; i < headers.length; i++) {
-      value = "";
-      header = headers[i];
+    for (var j = 0; j < headers.length; j++) {
+      value = '';
+      header = headers[j];
+
       // Loop through the header rows, adding values if they exist
       if (items[index].hasOwnProperty(header)) {
         if (items[index][header].N) {
@@ -97,11 +101,16 @@ function printout(items) {
           value = items[index][header].SS.toString();
         }
       }
-      values.push(value)
+
+      values.push(value);
     }
-    console.log(arrayToCSV(values))
+
+    console.log(arrayToCSV(values));
   }
 }
 
-if (program.describe) describeTable(query);
-else scanDynamoDB(query);
+if (program.describe) {
+  describeTable(query);
+} else {
+  scanDynamoDB(query);
+}
